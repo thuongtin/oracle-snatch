@@ -1,30 +1,30 @@
 # oracle-snatch
 
-一个小的 Python 循环脚本：不停用甲骨文云的官方接口申请免费 ARM 实例（VM.Standard.A1.Flex），直到哪次赶上放货、接口点头为止。
+Một script Python nhỏ chạy vòng lặp: liên tục dùng API chính thức của Oracle Cloud để xin cấp instance ARM miễn phí (VM.Standard.A1.Flex), cho đến khi gặp đúng lúc Oracle "nhả hàng" và API đồng ý.
 
-## 为什么写这个
+## Vì sao có repo này
 
-Always Free 的 A1.Flex 免费额度（总共 4 核 / 24 GB）是目前最划算的免费服务器，没有之一。问题是热门区域在控制台里基本永远显示「Out of host capacity」（没货）。这个货不是永久没了，而是会不定期放出来一小波，没人通知。对着控制台刷一周刷新纯属浪费生命，不如让脚本替你去问。
+Hạn mức miễn phí A1.Flex của Always Free (tổng cộng 4 nhân / 24 GB) hiện là máy chủ miễn phí đáng giá nhất, không có đối thủ. Vấn đề là ở các region hot, console gần như lúc nào cũng báo "Out of host capacity" (hết hàng). Hàng không phải mất vĩnh viễn, mà thỉnh thoảng được nhả ra một đợt nhỏ, và không ai thông báo cho bạn. Ngồi F5 console cả tuần thì chỉ phí đời, thà để script hỏi thay bạn.
 
-2026 年 10 月我用一个粗糙版本在东京区域跑了好几天。日志翻来覆去就是「没货」，中间还因为我把间隔设得太密、吃过几次 429 限流。最后抢到了那台 4 核 24 GB 的机器，我现在自托管的大部分服务都跑在它上面，到今天账单还是 0。这个仓库就是那个循环的整理版，配置都抽了出来。
+Tháng 10/2026, tôi chạy một bản thô ở region Tokyo trong vài ngày. Log toàn là "hết hàng", giữa chừng còn vài lần dính giới hạn 429 vì tôi đặt khoảng nghỉ quá dày. Cuối cùng tôi cũng giành được con máy 4 nhân 24 GB đó. Hiện giờ phần lớn dịch vụ self-host của tôi chạy trên nó, đến nay hóa đơn vẫn là 0. Repo này là bản đã dọn gọn của vòng lặp ấy, mọi cấu hình đều được tách ra riêng.
 
-## 它做什么
+## Nó làm gì
 
-- 只用甲骨文官方 API（Python 的 `oci` SDK），不搞控制台自动化、不模拟浏览器。
-- 轮询你所在区域的每一个可用域（AD），每轮每个 AD 尝试一次。东京只有一个 AD，多 AD 的区域中签率会好一些。
-- 「没货」就当「还没到时候」：歇一会儿，下一个 AD，下一轮。
-- 遇到 429 限流就长退避（默认 300 秒）。硬顶着 429 往前冲，只会让限流赖着不走。
-- 遇到配额错误（LimitExceeded）直接停，并把原因写清楚：这说明你的免费额度已经用完了，再重试一万次也没用。
-- 抢到后等实例变成 RUNNING，拿到公网 IP，写进 `snatched.json`，可选发一条 Telegram 通知，然后退出。
-- `--dry-run` 只验证配置：列出可用域、确认会用哪个镜像，不真开机器。第一次先跑这个。
+- Chỉ dùng API chính thức của Oracle (SDK `oci` của Python), không tự động hóa console, không giả lập trình duyệt.
+- Quét lần lượt mọi availability domain (AD) trong region của bạn, mỗi vòng thử mỗi AD một lần. Tokyo chỉ có một AD; region nhiều AD thì tỉ lệ trúng cao hơn một chút.
+- Gặp "hết hàng" thì coi như "chưa đến lúc": nghỉ một chút, sang AD tiếp theo, rồi vòng tiếp theo.
+- Gặp giới hạn 429 thì lùi (backoff) thật lâu (mặc định 300 giây). Cố lao qua 429 chỉ khiến giới hạn bám dai hơn.
+- Gặp lỗi hạn mức (LimitExceeded) thì dừng ngay và ghi rõ lý do: nghĩa là hạn mức miễn phí của bạn đã dùng hết, thử lại một vạn lần cũng vô ích.
+- Khi giành được, script chờ instance chuyển sang RUNNING, lấy IP công khai, ghi vào `snatched.json`, có thể gửi thông báo Telegram (tùy chọn), rồi thoát.
+- `--dry-run` chỉ kiểm tra cấu hình: liệt kê các AD, xác nhận sẽ dùng image nào, không tạo máy thật. Lần đầu hãy chạy cái này trước.
 
-它不做的事：不帮你注册账号、不建 VCN、不生成 API 密钥，更变不出不存在的货。它只是替你不知疲倦地问。
+Những việc nó không làm: không đăng ký tài khoản giúp bạn, không tạo VCN, không sinh API key, và càng không thể biến ra thứ hàng không tồn tại. Nó chỉ hỏi thay bạn không biết mệt.
 
-## 安装与使用
+## Cài đặt và sử dụng
 
-需要一个甲骨文云账号，以及 OCI 的配置文件（`~/.oci/config`，里面配好 API 密钥）。用过 OCI CLI 或 SDK 的人都有这个文件。
+Cần có tài khoản Oracle Cloud và file cấu hình OCI (`~/.oci/config`, trong đó đã cấu hình API key). Ai từng dùng OCI CLI hoặc SDK đều có file này.
 
-还需要一个子网 OCID：控制台里 Networking -> Virtual Cloud Networks -> 你的 VCN -> Subnets。想要公网 IP 就选公有子网（你肯定想要）。
+Cần thêm OCID của subnet: trong console vào Networking -> Virtual Cloud Networks -> VCN của bạn -> Subnets. Muốn có IP công khai thì chọn subnet công khai (chắc chắn bạn muốn vậy).
 
 ```bash
 git clone https://github.com/lucasforster1108-boop/oracle-snatch.git
@@ -32,15 +32,15 @@ cd oracle-snatch
 pip install -r requirements.txt
 
 cp config.example.env config.env
-# 改 config.env：必填的只有 SUBNET_ID 和 SSH_PUBLIC_KEY_FILE
+# Sửa config.env: chỉ bắt buộc điền SUBNET_ID và SSH_PUBLIC_KEY_FILE
 
 python3 snatch.py --dry-run
 python3 snatch.py
 ```
 
-## 长期挂着跑
+## Chạy treo lâu dài
 
-这东西就是设计成无人值守跑好几天的，所以挂在任何一台你已有的常开机器上就行（别处的免费小鸡、家里的服务器、树莓派都可以）。仓库里附了一个 systemd 服务示例：
+Thứ này được thiết kế để chạy không người trông nom nhiều ngày, nên cứ treo trên bất kỳ máy nào bạn đang có và bật thường trực (VPS miễn phí ở nơi khác, server ở nhà, Raspberry Pi đều được). Repo có kèm một ví dụ dịch vụ systemd:
 
 ```bash
 sudo cp oracle-snatch.service /etc/systemd/system/
@@ -48,20 +48,20 @@ sudo systemctl enable --now oracle-snatch
 tail -f snatch.log
 ```
 
-## 踩过的坑
+## Những cái bẫy đã gặp
 
-- 免费 A1 额度是总量，不是每台一份：一共 4 核 + 24 GB。可以开一台 4/24，也可以拆成两台 2/12。超了就是 LimitExceeded，脚本会主动停，别怪它。
-- 账号升级成 PAYG（按量付费）不会吃掉免费额度，额度内的 A1 用量照样不收钱，体感上货还稍微多一点。我的账号就是 PAYG，账单至今 0 元，另外设了个预算警报兜底。
-- 启动盘也算在 200 GB 免费块存储总量里。50 GB 对小服务器足够了，别因为「反正免费」默认拉满 200，剩下的额度留给第二台更划算。
-- 放货时间没规律，经常在半夜。循环的意义就在这：凌晨 4 点它醒着，你不用。
-- 别把重试间隔改成几秒。你不会更快抢到，只会吃 429，然后接下来一阵子什么都抢不到。
+- Hạn mức A1 miễn phí là tổng chung, không phải mỗi máy một phần: tổng cộng 4 nhân + 24 GB. Có thể tạo một máy 4/24, hoặc chia thành hai máy 2/12. Vượt quá sẽ báo LimitExceeded, script sẽ chủ động dừng, đừng trách nó.
+- Nâng tài khoản lên PAYG (trả theo mức dùng) không làm mất hạn mức miễn phí; lượng A1 trong hạn mức vẫn không bị tính tiền, và cảm giác là hàng còn nhiều hơn một chút. Tài khoản của tôi là PAYG, hóa đơn đến giờ vẫn 0 đồng, ngoài ra tôi đặt thêm cảnh báo ngân sách để phòng hờ.
+- Ổ khởi động cũng tính vào tổng 200 GB block storage miễn phí. 50 GB là đủ cho server nhỏ, đừng vì "dù sao cũng miễn phí" mà mặc định kéo lên 200; phần còn lại để dành cho máy thứ hai thì có lợi hơn.
+- Thời điểm nhả hàng không có quy luật, thường vào nửa đêm. Ý nghĩa của vòng lặp chính là ở đây: 4 giờ sáng nó thức, bạn thì không cần.
+- Đừng chỉnh khoảng nghỉ giữa các lần thử xuống còn vài giây. Bạn sẽ không giành được nhanh hơn, chỉ ăn 429, rồi một lúc sau đó chẳng giành được gì.
 
-## 文件
+## Các file
 
-- `snatch.py`：全部逻辑，一个文件
-- `config.example.env`：所有配置项，带注释
-- `oracle-snatch.service`：systemd 服务示例
+- `snatch.py`: toàn bộ logic, gói trong một file
+- `config.example.env`: tất cả tùy chọn cấu hình, có chú thích
+- `oracle-snatch.service`: ví dụ dịch vụ systemd
 
-## 授权
+## Giấy phép
 
 MIT
